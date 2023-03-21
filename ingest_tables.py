@@ -1,83 +1,6 @@
 # Databricks notebook source
 from delta.tables import *
-
-# COMMAND ----------
-
-spark.sql('use hive_metastore')
-
-# COMMAND ----------
-
-table_config = {
-  'workflow': 1,
-  'target_db': 'pre_dlt_ingest_bz',
-  'table_name': f'pre_dlt_ingest_bz.encounters',
-  'lifecycle':'bronze',
-  'input_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/landed/encounters',
-  'schema_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/schemas/bronze/encounters',
-  'checkpoint_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/checkpoints/bronze/encounters',
-  'output_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/output/bronze/encounters',
-  # make empty list if no need for z ordering
-  'zorderby':[]
-}
-
-# COMMAND ----------
-
-table_configs = [
-  {
-    'workflow': 1,
-    'target_db': 'pre_dlt_ingest_bz',
-    'table_name': f'pre_dlt_ingest_bz.encounters',
-    'lifecycle':'bronze',
-    'input_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/landed/encounters',
-    'schema_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/schemas/bronze/encounters',
-    'checkpoint_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/checkpoints/bronze/encounters',
-    'output_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/output/bronze/encounters',
-    # make empty list if no need for z ordering
-    'zorderby':[]
-  },
-    {
-    'workflow':2
-    'target_db': 'pre_dlt_ingest_sv',
-    #TODO db_name
-    'table_name': f'pre_dlt_ingest_sv.encounters',
-    'lifecycle':'silver',
-    'input_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/output/bronze/encounters',
-    'schema_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/schemas/silver/encounters',
-    'checkpoint_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/checkpoints/silver/encounters',
-    'output_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/output/silver/encounters',
-
-    # make empty list if no need for z ordering
-    'zorderby':['id'],
-    'merge_key':['id']
-  }
-  {
-    'workflow': 1,
-    'target_db': 'pre_dlt_ingest_bz',
-    'table_name': f'pre_dlt_ingest_bz.patients',
-    'lifecycle':'bronze',
-    'input_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/landed/patients',
-    'schema_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/schemas/bronze/patients',
-    'checkpoint_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/checkpoints/bronze/patients',
-    'output_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/output/bronze/patients',
-    # make empty list if no need for z ordering
-    'zorderby':[]
-  },
-    {
-    'workflow':2
-    'target_db': 'pre_dlt_ingest_sv',
-    #TODO db_name
-    'table_name': f'pre_dlt_ingest_sv.patients',
-    'lifecycle':'silver',
-    'input_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/output/bronze/patients',
-    'schema_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/schemas/silver/patients',
-    'checkpoint_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/checkpoints/silver/patients',
-    'output_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/output/silver/patients',
-
-    # make empty list if no need for z ordering
-    'zorderby':['id'],
-    'merge_key':['id']
-  }
-]
+from table_config import table_configs
 
 # COMMAND ----------
 
@@ -102,29 +25,6 @@ def update_bronze_table(table_config):
     spark.sql(f'optimize {table_config["table_name"]} ZORDER BY ({", ".join(table_config["zorderby"])})')
   
 
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC describe history hive_metastore.pre_dlt_ingest_bz.encounters
-
-# COMMAND ----------
-
-table_config = {
-  'workflow':2
-  'target_db': 'pre_dlt_ingest_sv',
-  #TODO db_name
-  'table_name': f'pre_dlt_ingest_sv.encounters',
-  'lifecycle':'silver',
-  'input_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/output/bronze/encounters',
-  'schema_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/schemas/silver/encounters',
-  'checkpoint_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/checkpoints/silver/encounters',
-  'output_path': 'dbfs:/home/riley.rustad@databricks.com/pre_dlt_ingest/output/silver/encounters',
-  
-  # make empty list if no need for z ordering
-  'zorderby':['id'],
-  'merge_key':['id']
-}
 
 # COMMAND ----------
 
@@ -169,13 +69,24 @@ def update_silver_table_scd1(table_config):
 
 # COMMAND ----------
 
-update_bronze_table(table_config)
-update_silver_table_scd1(table_config)
+for table_config in table_configs:
+  if table_config['workflow'] == 1:
+    print(table_config['table_name'])
+    update_bronze_table(table_config)
+# update_silver_table_scd1(table_config)
+
+# COMMAND ----------
+
+for table_config in table_configs:
+  if table_config['workflow'] == 2:
+    print(table_config['table_name'])
+#     update_bronze_table(table_config)
+    update_silver_table_scd1(table_config)
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC describe history hive_metastore.pre_dlt_ingest_sv.encounters
+# MAGIC describe history hive_metastore.pre_dlt_ingest_sv.procedures
 
 # COMMAND ----------
 
